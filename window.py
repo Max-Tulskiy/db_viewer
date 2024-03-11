@@ -49,10 +49,10 @@ class Ui_MainWindow(object):
 
         self.tableWidget = QTableWidget(self.centralwidget)
         self.tableWidget.setObjectName(u"tableWidget")
-        self.tableWidget.setGeometry(QRect(30, 30, 601, 351))
+        self.tableWidget.setGeometry(QRect(30, 30, 600, 371))
         self.tableWidget_2 = QTableWidget(self.centralwidget)
         self.tableWidget_2.setObjectName(u"tableWidget_2")
-        self.tableWidget_2.setGeometry(QRect(30, 410, 601, 121))
+        self.tableWidget_2.setGeometry(QRect(30, 440, 601, 71))
         self.pushButton_4 = QPushButton(self.centralwidget)
         self.pushButton_4.setObjectName(u"pushButton_4")
         self.pushButton_4.setGeometry(QRect(640, 30, 41, 28))

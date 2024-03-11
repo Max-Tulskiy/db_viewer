@@ -1,4 +1,5 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+from PySide6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QMessageBox, QHeaderView
+from PySide6.QtCore import Qt
 from window import Ui_MainWindow
 import sys
 import psycopg2
@@ -12,21 +13,33 @@ class MyMainWindow(QMainWindow):
         self.ui.setupUi(self)
         
         self.ui.tableWidget.setColumnCount(4)
-
         self.ui.tableWidget.setHorizontalHeaderLabels(["Код туриста", "Фамилия", "Имя", "Отчество"])
 
         self.ui.tableWidget_2.setColumnCount(6)
         self.ui.tableWidget_2.setRowCount(1)
         self.ui.tableWidget_2.setHorizontalHeaderLabels(["Код туриста", "Серия паспорта", "Город", "Страна", "Телефон", "Индекс"])
 
+        self.ui.tableWidget.setColumnWidth(0, 130)
+        self.ui.tableWidget.setColumnWidth(1, 150)
+        self.ui.tableWidget.setColumnWidth(2, 150)
+        self.ui.tableWidget.setColumnWidth(3, 150)
+
+        self.ui.tableWidget_2.setColumnWidth(0, 98)
+        self.ui.tableWidget_2.setColumnWidth(1, 100)
+        self.ui.tableWidget_2.setColumnWidth(2, 100)
+        self.ui.tableWidget_2.setColumnWidth(3, 100)
+        self.ui.tableWidget_2.setColumnWidth(4, 100)
+        self.ui.tableWidget_2.setColumnWidth(5, 100)
+        self.ui.tableWidget_2.setRowHeight(0, 50)
+
+        vertical_header = self.ui.tableWidget_2.verticalHeader()
+        vertical_header.setVisible(False)
+        
         self.showDataFromDB()
         self.ui.tableWidget.cellClicked.connect(self.showRelatedInfoTouristData)
 
         self.ui.pushButton_4.clicked.connect(self.addRow)
         self.ui.pushButton_2.clicked.connect(self.editDataInTourist)
-
-        #self.ui.tableWidget.itemChanged.connect(self.editDataInTourist)
-        #self.ui.tableWidget_2.itemChanged.connect(self.editDataInInfoTourist)
 
         self.ui.pushButton.clicked.connect(self.add_data_to_tourist)
         self.ui.pushButton_3.clicked.connect(self.removeDataFromDb)
@@ -41,7 +54,9 @@ class MyMainWindow(QMainWindow):
             for row_number, row_data in enumerate(rows):
                 self.ui.tableWidget.insertRow(row_number)
                 for column_number, data in enumerate(row_data):
-                    self.ui.tableWidget.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+                    item = QTableWidgetItem(str(data))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    self.ui.tableWidget.setItem(row_number, column_number, item)
                     
         connection.close()
 
@@ -64,48 +79,64 @@ class MyMainWindow(QMainWindow):
 
             for row_number, row_data in enumerate(rows):
                 for column_number, data in enumerate(row_data):
-                    self.ui.tableWidget_2.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+                    item = QTableWidgetItem(str(data))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    self.ui.tableWidget_2.setItem(row_number, column_number, item)
+
         connection.close()
 
 
     def addRow(self):
         row_position = self.ui.tableWidget.rowCount()
         self.ui.tableWidget.insertRow(row_position)
+        self.ui.tableWidget_2.clearContents()
 
     #Добавить
     def add_data_to_tourist(self):
-        
-        num_rows = self.ui.tableWidget.rowCount()
-        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
-        
-        for row in range(num_rows):
-            id_item = self.ui.tableWidget.item(row, 0)
-            name_item = self.ui.tableWidget.item(row, 1)
-            surname_item = self.ui.tableWidget.item(row, 2)
-            patronymic_item = self.ui.tableWidget.item(row, 3)
+        try:
+            num_rows = self.ui.tableWidget.rowCount()
+            connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+            
+            for row in range(num_rows):
+                id_item = self.ui.tableWidget.item(row, 0)
+                name_item = self.ui.tableWidget.item(row, 1)
+                surname_item = self.ui.tableWidget.item(row, 2)
+                patronymic_item = self.ui.tableWidget.item(row, 3)
 
-            if not all([id_item, name_item, surname_item, patronymic_item]):
-                continue
+                if not all([id_item, name_item, surname_item, patronymic_item]):
+                    continue
 
-            id_value = id_item.text()
-            first_name_value = name_item.text()
-            second_name_value = surname_item.text()
-            patronymic_value = patronymic_item.text()
+                id_value = id_item.text()
+                first_name_value = name_item.text()
+                second_name_value = surname_item.text()
+                patronymic_value = patronymic_item.text()
 
-            cursor = connection.cursor()
-            cursor.execute("SELECT id FROM tourist WHERE id = %s", (id_value,))
-            existing_id = cursor.fetchone()
+                cursor = connection.cursor()
+                cursor.execute("SELECT id FROM tourist WHERE id = %s", (id_value,))
+                existing_id = cursor.fetchone()
 
-            if existing_id:
-                continue
+                if existing_id:
+                    continue
 
-            cursor.execute("INSERT INTO tourist (id, first_name, second_name, patronymic) VALUES (%s, %s, %s, %s)", (id_value, first_name_value, second_name_value, patronymic_value))
-            connection.commit()
+                cursor.execute("INSERT INTO tourist (id, first_name, second_name, patronymic) VALUES (%s, %s, %s, %s)", (id_value, first_name_value, second_name_value, patronymic_value))
+                connection.commit()
 
-            cursor.close()
-            connection.close()
+                cursor.close()
+                connection.close()
 
-        self.add_data_to_info_tourist()
+            self.add_data_to_info_tourist()
+        except Exception as ex:
+            messageBox = QMessageBox()
+            messageBox.setIcon(QMessageBox.Warnibg)
+            messageBox.setWindowTitle("Предупреждение")
+            messageBox.setText("Ошибка при добавлении данных!")
+            messageBox.exec()
+        finally:
+            messageBox = QMessageBox()
+            messageBox.setIcon(QMessageBox.Information)
+            messageBox.setWindowTitle("Инфо")
+            messageBox.setText("Данные успешно добавлены")
+            messageBox.exec()
 
 
     def add_data_to_info_tourist(self):
@@ -125,7 +156,11 @@ class MyMainWindow(QMainWindow):
             existing_id = cursor.fetchone()
            
             if not existing_id:
-                print("Нельзя добавить запись, т.к пользователь не существует")
+                messageBox = QMessageBox()
+                messageBox.setIcon(QMessageBox.Warning)
+                messageBox.setWindowTitle("Предупреждение")
+                messageBox.setText("Нельзя добавить запись, т.к пользователь не существует")
+                messageBox.exec()
                 return
 
         with connection.cursor() as cursor:
@@ -133,7 +168,6 @@ class MyMainWindow(QMainWindow):
             connection.commit()
 
 
-    #Изменить
     def editDataInTourist(self):
         
         connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
@@ -180,7 +214,6 @@ class MyMainWindow(QMainWindow):
         connection.close()
 
 
-    #Удалить
     def removeDataFromDb(self):
         current_row = self.ui.tableWidget.currentRow()
         connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
