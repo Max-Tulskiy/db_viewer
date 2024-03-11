@@ -15,32 +15,65 @@ class MyMainWindow(QMainWindow):
 
         self.ui.tableWidget.setHorizontalHeaderLabels(["Код туриста", "Фамилия", "Имя", "Отчество"])
 
+        self.ui.tableWidget_2.setColumnCount(6)
+        self.ui.tableWidget_2.setRowCount(1)
+        self.ui.tableWidget_2.setHorizontalHeaderLabels(["Код туриста", "Серия паспорта", "Город", "Страна", "Телефон", "Индекс"])
+
         self.showDataFromDB()
-        
+        self.ui.tableWidget.cellClicked.connect(self.showRelatedInfoTouristData)
+
         self.ui.pushButton_4.clicked.connect(self.addRow)
-        self.ui.pushButton_2.clicked.connect(self.editDataInDB)
-        self.ui.tableWidget.itemChanged.connect(self.editDataInDB)
-        self.ui.pushButton.clicked.connect(self.add_data_to_database)
+        self.ui.pushButton_2.clicked.connect(self.editDataInTourist)
+
+        #self.ui.tableWidget.itemChanged.connect(self.editDataInTourist)
+        #self.ui.tableWidget_2.itemChanged.connect(self.editDataInInfoTourist)
+
+        self.ui.pushButton.clicked.connect(self.add_data_to_tourist)
         self.ui.pushButton_3.clicked.connect(self.removeDataFromDb)
+
 
     def showDataFromDB(self):
         connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
         with connection.cursor() as cursor:
             cursor.execute("SELECT * FROM tourist ORDER BY id")
             rows = cursor.fetchall()
-
+            
             for row_number, row_data in enumerate(rows):
                 self.ui.tableWidget.insertRow(row_number)
                 for column_number, data in enumerate(row_data):
                     self.ui.tableWidget.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+                    
         connection.close()
+
+
+    def showRelatedInfoTouristData(self):
+        selected_row = self.ui.tableWidget.currentRow()
+        if selected_row >= 0:
+            item = self.ui.tableWidget.item(selected_row, 0)
+            if item is not None:
+                id_tourist = int(item.text())
+                self.ui.tableWidget_2.clearContents()
+                self.showInfoTouristDataForId(id_tourist)
+
+
+    def showInfoTouristDataForId(self, id_tourist):
+        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT * FROM info_tourist WHERE id_tourist = %s", (id_tourist,))
+            rows = cursor.fetchall()
+
+            for row_number, row_data in enumerate(rows):
+                for column_number, data in enumerate(row_data):
+                    self.ui.tableWidget_2.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+        connection.close()
+
 
     def addRow(self):
         row_position = self.ui.tableWidget.rowCount()
         self.ui.tableWidget.insertRow(row_position)
 
     #Добавить
-    def add_data_to_database(self):
+    def add_data_to_tourist(self):
         
         num_rows = self.ui.tableWidget.rowCount()
         connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
@@ -72,22 +105,80 @@ class MyMainWindow(QMainWindow):
             cursor.close()
             connection.close()
 
-    #Изменить
-    def editDataInDB(self, item):
-        mappa = {'Код туриста': 'id', 'Фамилия': 'second_name', 'Имя': 'first_name', 'Отчество': 'patronymic'}
-        row = item.row()
-        column = item.column()
-        new_value = item.text()
+        self.add_data_to_info_tourist()
 
-        id_item = self.ui.tableWidget.item(row, 0)
-        id_value = id_item.text()
+
+    def add_data_to_info_tourist(self):
+        id_tourist = self.ui.tableWidget_2.item(0, 0).text()
+        passport_number = self.ui.tableWidget_2.item(0, 1).text()
+        city = self.ui.tableWidget_2.item(0, 2).text()
+        country = self.ui.tableWidget_2.item(0, 3).text()
+        phone_number = self.ui.tableWidget_2.item(0, 4).text()
+        city_index = self.ui.tableWidget_2.item(0, 5).text()
+        
+        if not all([id_tourist, passport_number, city, country, phone_number, city_index]): return
 
         connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM tourist WHERE id = %s", (id_tourist,))
+            existing_id = cursor.fetchone()
+           
+            if not existing_id:
+                print("Нельзя добавить запись, т.к пользователь не существует")
+                return
+
+        with connection.cursor() as cursor:
+            cursor.execute("INSERT INTO info_tourist (id_tourist, passport_number, city, country, phone_number, city_index) VALUES (%s, %s, %s, %s, %s, %s)", (id_tourist, passport_number, city, country, phone_number, city_index))
+            connection.commit()
+
+
+    #Изменить
+    def editDataInTourist(self):
+        
+        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
         cursor = connection.cursor()
-        cursor.execute("UPDATE tourist SET {} = %s WHERE id = %s".format(mappa[self.ui.tableWidget.horizontalHeaderItem(column).text()]), (new_value, id_value))
+
+        for row in range(self.ui.tableWidget.rowCount()):
+            id = int(self.ui.tableWidget.item(row, 0).text())  
+            first_name = self.ui.tableWidget.item(row, 1).text()  
+            second_name = self.ui.tableWidget.item(row, 2).text()  
+            patronymic = self.ui.tableWidget.item(row, 3).text()
+            
+            cursor.execute("""
+                UPDATE tourist 
+                SET first_name = %s, second_name = %s, patronymic = %s 
+                WHERE id = %s
+            """, (first_name, second_name, patronymic, id))
+
         connection.commit()
         cursor.close()
         connection.close()
+
+        self.editDataInInfoTourist()
+
+    def editDataInInfoTourist(self):
+        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+        cursor = connection.cursor()
+
+        for row in range(self.ui.tableWidget_2.rowCount()):
+            id_tourist = int(self.ui.tableWidget_2.item(row, 0).text())  
+            passport_number = self.ui.tableWidget_2.item(row, 1).text()  
+            city = self.ui.tableWidget_2.item(row, 2).text()  
+            country = self.ui.tableWidget_2.item(row, 3).text()
+            phone_number = self.ui.tableWidget_2.item(row, 4).text()
+            city_index = self.ui.tableWidget_2.item(row, 5).text()
+
+            cursor.execute("""
+                UPDATE info_tourist 
+                SET passport_number = %s, city = %s, country = %s, phone_number = %s, city_index = %s 
+                WHERE id_tourist = %s
+            """, (passport_number, city, country, phone_number, city_index, id_tourist))
+
+        connection.commit()
+        cursor.close()
+        connection.close()
+
 
     #Удалить
     def removeDataFromDb(self):
@@ -99,8 +190,10 @@ class MyMainWindow(QMainWindow):
             id_value = id_item.text()
 
             self.ui.tableWidget.removeRow(current_row)
+            self.ui.tableWidget_2.clearContents()
 
             cursor = connection.cursor()
+            cursor.execute("DELETE FROM info_tourist WHERE id_tourist = %s", (id_value,))
             cursor.execute("DELETE FROM tourist WHERE id = %s", (id_value,))
             connection.commit()
             cursor.close()
