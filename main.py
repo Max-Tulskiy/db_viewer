@@ -1,5 +1,6 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QMessageBox, QHeaderView
+from PySide6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from window import Ui_MainWindow
 import sys
 import psycopg2
@@ -91,7 +92,7 @@ class MyMainWindow(QMainWindow):
         self.ui.tableWidget.insertRow(row_position)
         self.ui.tableWidget_2.clearContents()
 
-    #Добавить
+
     def add_data_to_tourist(self):
         try:
             num_rows = self.ui.tableWidget.rowCount()
@@ -169,27 +170,40 @@ class MyMainWindow(QMainWindow):
 
 
     def editDataInTourist(self):
-        
-        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
-        cursor = connection.cursor()
+        try:
+            connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+            cursor = connection.cursor()
 
-        for row in range(self.ui.tableWidget.rowCount()):
-            id = int(self.ui.tableWidget.item(row, 0).text())  
-            first_name = self.ui.tableWidget.item(row, 1).text()  
-            second_name = self.ui.tableWidget.item(row, 2).text()  
-            patronymic = self.ui.tableWidget.item(row, 3).text()
-            
-            cursor.execute("""
-                UPDATE tourist 
-                SET first_name = %s, second_name = %s, patronymic = %s 
-                WHERE id = %s
-            """, (first_name, second_name, patronymic, id))
+            for row in range(self.ui.tableWidget.rowCount()):
+                id = int(self.ui.tableWidget.item(row, 0).text())  
+                first_name = self.ui.tableWidget.item(row, 1).text()  
+                second_name = self.ui.tableWidget.item(row, 2).text()  
+                patronymic = self.ui.tableWidget.item(row, 3).text()
+                
+                cursor.execute("""
+                    UPDATE tourist 
+                    SET first_name = %s, second_name = %s, patronymic = %s 
+                    WHERE id = %s
+                """, (first_name, second_name, patronymic, id))
 
-        connection.commit()
-        cursor.close()
-        connection.close()
+            connection.commit()
+            cursor.close()
+            connection.close()
 
-        self.editDataInInfoTourist()
+            self.editDataInInfoTourist()
+        except Exception:
+            messageBox = QMessageBox()
+            messageBox.setIcon(QMessageBox.Warning)
+            messageBox.setWindowTitle("Предупреждение")
+            messageBox.setText("Ошибка во время изменения данных!")
+            messageBox.exec()
+        finally:
+            messageBox = QMessageBox()
+            messageBox.setIcon(QMessageBox.Information)
+            messageBox.setWindowTitle("Инфо")
+            messageBox.setText("Данные успешно обновлены!")
+            messageBox.exec()
+
 
     def editDataInInfoTourist(self):
         connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
@@ -231,10 +245,19 @@ class MyMainWindow(QMainWindow):
             connection.commit()
             cursor.close()
 
+            messageBox = QMessageBox()
+            messageBox.setIcon(QMessageBox.Information)
+            messageBox.setWindowTitle("Инфо")
+            messageBox.setText("Данные успешно удалены!")
+            messageBox.exec()
+
 
 def main():
     app = QApplication(sys.argv)
     mainWindow = MyMainWindow()
+    mainWindow.setWindowTitle("DB_Viewer")
+    mainWindow.setWindowIcon(QIcon("icon.png"))
+    mainWindow.setFixedSize(800, 600)
     mainWindow.show()
     sys.exit(app.exec())
 
