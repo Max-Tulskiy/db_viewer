@@ -1,10 +1,10 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QMessageBox
+import sys
+import psycopg2
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from window import Ui_MainWindow
-import sys
-import psycopg2
 from config import host, user, password, db_name
+from PySide6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QMessageBox
 
 
 class MyMainWindow(QMainWindow):
@@ -14,11 +14,19 @@ class MyMainWindow(QMainWindow):
         self.ui.setupUi(self)
         
         self.ui.tableWidget.setColumnCount(4)
-        self.ui.tableWidget.setHorizontalHeaderLabels(["Код туриста", "Фамилия", "Имя", "Отчество"])
+        self.ui.tableWidget.setHorizontalHeaderLabels(["Код туриста",
+                                                       "Фамилия",
+                                                       "Имя",
+                                                       "Отчество"])
 
         self.ui.tableWidget_2.setColumnCount(6)
         self.ui.tableWidget_2.setRowCount(1)
-        self.ui.tableWidget_2.setHorizontalHeaderLabels(["Код туриста", "Серия паспорта", "Город", "Страна", "Телефон", "Индекс"])
+        self.ui.tableWidget_2.setHorizontalHeaderLabels(["Код туриста",
+                                                         "Серия паспорта",
+                                                         "Город",
+                                                         "Страна",
+                                                         "Телефон",
+                                                         "Индекс"])
 
         self.ui.tableWidget.setColumnWidth(0, 130)
         self.ui.tableWidget.setColumnWidth(1, 150)
@@ -47,25 +55,33 @@ class MyMainWindow(QMainWindow):
 
 
     def showDataFromDB(self):
-        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+        connection = psycopg2.connect(host=host,
+                                      user=user,
+                                      password=password,
+                                      database=db_name)
+        
         with connection.cursor() as cursor:
             cursor.execute("SELECT * FROM tourist ORDER BY id")
             rows = cursor.fetchall()
             
             for row_number, row_data in enumerate(rows):
                 self.ui.tableWidget.insertRow(row_number)
+
                 for column_number, data in enumerate(row_data):
                     item = QTableWidgetItem(str(data))
                     item.setTextAlignment(Qt.AlignCenter)
-                    self.ui.tableWidget.setItem(row_number, column_number, item)
-                    
+                    self.ui.tableWidget.setItem(row_number,
+                                                column_number,
+                                                item)
         connection.close()
 
 
     def showRelatedInfoTouristData(self):
         selected_row = self.ui.tableWidget.currentRow()
+        
         if selected_row >= 0:
             item = self.ui.tableWidget.item(selected_row, 0)
+
             if item is not None:
                 id_tourist = int(item.text())
                 self.ui.tableWidget_2.clearContents()
@@ -73,16 +89,24 @@ class MyMainWindow(QMainWindow):
 
 
     def showInfoTouristDataForId(self, id_tourist):
-        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+        connection = psycopg2.connect(host=host,
+                                      user=user,
+                                      password=password,
+                                      database=db_name)
+        
         with connection.cursor() as cursor:
-            cursor.execute("SELECT * FROM info_tourist WHERE id_tourist = %s", (id_tourist,))
+            cursor.execute("SELECT * FROM info_tourist WHERE id_tourist = %s",
+                           (id_tourist,))        
             rows = cursor.fetchall()
 
             for row_number, row_data in enumerate(rows):
                 for column_number, data in enumerate(row_data):
                     item = QTableWidgetItem(str(data))
                     item.setTextAlignment(Qt.AlignCenter)
-                    self.ui.tableWidget_2.setItem(row_number, column_number, item)
+
+                    self.ui.tableWidget_2.setItem(row_number,
+                                                  column_number,
+                                                  item)
 
         connection.close()
 
@@ -94,9 +118,13 @@ class MyMainWindow(QMainWindow):
 
 
     def add_data_to_tourist(self):
+
         try:
             num_rows = self.ui.tableWidget.rowCount()
-            connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+            connection = psycopg2.connect(host=host,
+                                          user=user,
+                                          password=password,
+                                          database=db_name)
             
             for row in range(num_rows):
                 id_item = self.ui.tableWidget.item(row, 0)
@@ -104,7 +132,10 @@ class MyMainWindow(QMainWindow):
                 surname_item = self.ui.tableWidget.item(row, 2)
                 patronymic_item = self.ui.tableWidget.item(row, 3)
 
-                if not all([id_item, name_item, surname_item, patronymic_item]):
+                if not all([id_item,
+                            name_item,
+                            surname_item,
+                            patronymic_item]):
                     continue
 
                 id_value = id_item.text()
@@ -113,25 +144,37 @@ class MyMainWindow(QMainWindow):
                 patronymic_value = patronymic_item.text()
 
                 cursor = connection.cursor()
-                cursor.execute("SELECT id FROM tourist WHERE id = %s", (id_value,))
+                cursor.execute("SELECT id FROM tourist WHERE id = %s",
+                               (id_value,))
+                
                 existing_id = cursor.fetchone()
 
                 if existing_id:
                     continue
 
-                cursor.execute("INSERT INTO tourist (id, first_name, second_name, patronymic) VALUES (%s, %s, %s, %s)", (id_value, first_name_value, second_name_value, patronymic_value))
+                cursor.execute("""
+                               INSERT INTO tourist
+                               (id, first_name, second_name, patronymic)
+                                VALUES (%s, %s, %s, %s)
+                               """,
+                               (id_value,
+                                first_name_value,
+                                second_name_value,
+                                patronymic_value))
+                
                 connection.commit()
-
                 cursor.close()
                 connection.close()
 
             self.add_data_to_info_tourist()
-        except Exception as ex:
+
+        except Exception:
             messageBox = QMessageBox()
             messageBox.setIcon(QMessageBox.Warnibg)
             messageBox.setWindowTitle("Предупреждение")
             messageBox.setText("Ошибка при добавлении данных!")
             messageBox.exec()
+
         finally:
             messageBox = QMessageBox()
             messageBox.setIcon(QMessageBox.Information)
@@ -148,12 +191,23 @@ class MyMainWindow(QMainWindow):
         phone_number = self.ui.tableWidget_2.item(0, 4).text()
         city_index = self.ui.tableWidget_2.item(0, 5).text()
         
-        if not all([id_tourist, passport_number, city, country, phone_number, city_index]): return
+        if not all([id_tourist,
+                    passport_number,
+                    city,
+                    country,
+                    phone_number,
+                    city_index]): 
+            return
 
-        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+        connection = psycopg2.connect(host=host,
+                                      user=user,
+                                      password=password,
+                                      database=db_name)
 
         with connection.cursor() as cursor:
-            cursor.execute("SELECT id FROM tourist WHERE id = %s", (id_tourist,))
+            cursor.execute("SELECT id FROM tourist WHERE id = %s",
+                           (id_tourist,))
+            
             existing_id = cursor.fetchone()
            
             if not existing_id:
@@ -165,13 +219,27 @@ class MyMainWindow(QMainWindow):
                 return
 
         with connection.cursor() as cursor:
-            cursor.execute("INSERT INTO info_tourist (id_tourist, passport_number, city, country, phone_number, city_index) VALUES (%s, %s, %s, %s, %s, %s)", (id_tourist, passport_number, city, country, phone_number, city_index))
+            cursor.execute("""
+                           INSERT INTO info_tourist 
+                           (id_tourist, passport_number, city, country, phone_number, city_index) 
+                           VALUES (%s, %s, %s, %s, %s, %s)
+                           """,
+                           (id_tourist,
+                            passport_number,
+                            city, 
+                            country,
+                            phone_number,
+                            city_index))
+            
             connection.commit()
 
 
     def editDataInTourist(self):
         try:
-            connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+            connection = psycopg2.connect(host=host,
+                                          user=user,
+                                          password=password,
+                                          database=db_name)
             cursor = connection.cursor()
 
             for row in range(self.ui.tableWidget.rowCount()):
@@ -181,22 +249,25 @@ class MyMainWindow(QMainWindow):
                 patronymic = self.ui.tableWidget.item(row, 3).text()
                 
                 cursor.execute("""
-                    UPDATE tourist 
-                    SET first_name = %s, second_name = %s, patronymic = %s 
+                    UPDATE tourist
+                    SET first_name = %s, second_name = %s, patronymic = %s
                     WHERE id = %s
-                """, (first_name, second_name, patronymic, id))
+                    """,
+                    (first_name, second_name, patronymic, id))
 
             connection.commit()
             cursor.close()
             connection.close()
 
             self.editDataInInfoTourist()
+
         except Exception:
             messageBox = QMessageBox()
             messageBox.setIcon(QMessageBox.Warning)
             messageBox.setWindowTitle("Предупреждение")
             messageBox.setText("Ошибка во время изменения данных!")
             messageBox.exec()
+
         finally:
             messageBox = QMessageBox()
             messageBox.setIcon(QMessageBox.Information)
@@ -206,22 +277,30 @@ class MyMainWindow(QMainWindow):
 
 
     def editDataInInfoTourist(self):
-        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+        connection = psycopg2.connect(host=host,
+                                      user=user,
+                                      password=password,
+                                      database=db_name)
         cursor = connection.cursor()
 
         for row in range(self.ui.tableWidget_2.rowCount()):
-            id_tourist = int(self.ui.tableWidget_2.item(row, 0).text())  
-            passport_number = self.ui.tableWidget_2.item(row, 1).text()  
-            city = self.ui.tableWidget_2.item(row, 2).text()  
+            id_tourist = int(self.ui.tableWidget_2.item(row, 0).text())
+            passport_number = self.ui.tableWidget_2.item(row, 1).text()
+            city = self.ui.tableWidget_2.item(row, 2).text()
             country = self.ui.tableWidget_2.item(row, 3).text()
             phone_number = self.ui.tableWidget_2.item(row, 4).text()
             city_index = self.ui.tableWidget_2.item(row, 5).text()
 
             cursor.execute("""
-                UPDATE info_tourist 
-                SET passport_number = %s, city = %s, country = %s, phone_number = %s, city_index = %s 
+                UPDATE info_tourist
+                SET passport_number = %s, city = %s, country = %s, phone_number = %s, city_index = %s
                 WHERE id_tourist = %s
-            """, (passport_number, city, country, phone_number, city_index, id_tourist))
+            """, (passport_number,
+                  city,
+                  country,
+                  phone_number,
+                  city_index,
+                  id_tourist))
 
         connection.commit()
         cursor.close()
@@ -230,7 +309,10 @@ class MyMainWindow(QMainWindow):
 
     def removeDataFromDb(self):
         current_row = self.ui.tableWidget.currentRow()
-        connection = psycopg2.connect(host=host, user=user, password=password, database=db_name)
+        connection = psycopg2.connect(host=host,
+                                      user=user,
+                                      password=password,
+                                      database=db_name)
 
         if current_row != -1:  
             id_item = self.ui.tableWidget.item(current_row, 0)
@@ -240,8 +322,17 @@ class MyMainWindow(QMainWindow):
             self.ui.tableWidget_2.clearContents()
 
             cursor = connection.cursor()
-            cursor.execute("DELETE FROM info_tourist WHERE id_tourist = %s", (id_value,))
-            cursor.execute("DELETE FROM tourist WHERE id = %s", (id_value,))
+            cursor.execute("""
+                           DELETE FROM info_tourist
+                           WHERE id_tourist = %s
+                           """,
+                           (id_value,))
+            
+            cursor.execute("""
+                           DELETE FROM tourist 
+                           WHERE id = %s
+                           """, 
+                           (id_value,))
             connection.commit()
             cursor.close()
 
